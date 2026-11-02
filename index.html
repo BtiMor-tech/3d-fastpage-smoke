@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <title>比特摩尔 · 3D快出页 Viewer Smoke</title>
+        <meta charset="UTF-8" />
+        <meta
+            name="viewport"
+            content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+        />
+        <base href="" />
+        <link rel="stylesheet" href="./index.css" />
+
+        <!--
+            The viewer fills whatever contains it. In the standalone document that is the page,
+            so make the page fill the viewport. This lives here rather than in index.css because
+            a host page linking the stylesheet must not have its own body restyled.
+        -->
+        <style>
+            html,
+            body {
+                height: 100%;
+                margin: 0;
+                overflow: hidden;
+            }
+        </style>
+
+        <!--
+            Single injection seam. `renderViewerHtml` replaces the contents of this block to
+            supply asset urls and inline settings, so anything generating a page around the
+            viewer goes through that function rather than pattern-matching this document.
+            Left as `null` for the standalone case.
+        -->
+        <script type="application/json" id="sse-bootstrap">
+            {
+                "contentUrl": "./apple.compressed.ply",
+                "settingsUrl": "./settings.json"
+            }
+        </script>
+
+        <script type="module">
+            const createImage = (url) => {
+                const img = new Image();
+                img.src = url;
+                return img;
+            };
+
+            const url = new URL(location.href);
+
+            // Embedder-supplied defaults. URL params take precedence over the asset urls below,
+            // so an embed can still be overridden per-instance (e.g. `?skybox=` to preview a
+            // different sky). Inline `settings` is the exception: it wins over `?settings=`, so a
+            // published experience cannot be repointed at someone else's settings file.
+            const bootstrap = JSON.parse(document.getElementById('sse-bootstrap').textContent) ?? {};
+
+            const posterUrl = url.searchParams.get('poster') ?? bootstrap.posterUrl ?? null;
+            const skyboxUrl = url.searchParams.get('skybox') ?? bootstrap.skyboxUrl ?? null;
+            const collisionUrl =
+                url.searchParams.get('collision') ?? url.searchParams.get('voxel') ?? bootstrap.collisionUrl ?? null;
+            const settingsUrl = url.searchParams.get('settings') ?? bootstrap.settingsUrl ?? './settings.json';
+            const contentUrl = url.searchParams.get('content') ?? bootstrap.contentUrl ?? './scene.compressed.ply';
+            // the bootstrap's alone: a url param would let a link run any wasm in this origin
+            const gsafDecoderUrl = bootstrap.gsafDecoderUrl ?? null;
+
+            // Names the bootstrap's contentUrl when the url itself has no usable name (a data:
+            // uri, say) — the splat format is chosen by the name's extension. Ignored when a
+            // ?content= override replaces the url it describes.
+            const contentFilename = url.searchParams.has('content') ? null : (bootstrap.contentFilename ?? null);
+
+            const renderer = url.searchParams.has('webgl') ? 'webgl' : 'webgpu';
+
+            const budgetParam = url.searchParams.get('budget');
+            const budget = budgetParam !== null ? Number(budgetParam) : undefined;
+
+            // The engine's octree parser fetches lod-meta.json itself and ignores a prefetched
+            // response, so starting one here would download the metadata twice. Every other splat
+            // parser consumes it, so they keep the head start. `isPrefetchable` in src/index.ts
+            // applies the same rule for embedders that do not pass `contents`.
+            const contentName = contentFilename ?? new URL(contentUrl, location.href).pathname.split('/').pop() ?? '';
+            const prefetchContent = contentName.toLowerCase() !== 'lod-meta.json';
+
+            // createViewer's options, minus the container and the settings. The poster image and
+            // the content fetch start here, before the module bundle has arrived.
+            const sseOptions = {
+                contentUrl,
+                contentFilename,
+                posterUrl,
+                skyboxUrl,
+                collisionUrl,
+                gsafDecoderUrl,
+                poster: posterUrl && createImage(posterUrl),
+                contents: prefetchContent ? fetch(contentUrl) : undefined,
+                ui: !url.searchParams.has('noui'),
+                reticle: url.searchParams.has('reticle'),
+                noanim: url.searchParams.has('noanim'),
+                nofx: url.searchParams.has('nofx'),
+                hpr: url.searchParams.has('hpr')
+                    ? ['', '1', 'true', 'enable'].includes(url.searchParams.get('hpr'))
+                    : undefined,
+                ministats: url.searchParams.has('ministats'),
+                colorize: url.searchParams.has('colorize'),
+                renderer,
+                aa: url.searchParams.has('aa'),
+                stochastic: url.searchParams.has('stochastic')
+                    ? url.searchParams.get('stochastic') === 'mobile'
+                        ? 'mobile'
+                        : url.searchParams.get('stochastic') === 'off'
+                          ? 'off'
+                          : true
+                    : false,
+                splatSource: url.searchParams.get('splatSource') ?? undefined,
+                variant: url.searchParams.get('variant') ?? undefined,
+                budget,
+                framesInFlight: url.searchParams.has('fif') ? Number(url.searchParams.get('fif')) : undefined,
+                heatmap: url.searchParams.has('heatmap'),
+                fullload: url.searchParams.has('fullload'),
+                vr: url.searchParams.has('vr'),
+                debug: url.searchParams.has('debug'),
+                lang: url.searchParams.get('lang'),
+                // the standalone document is the one place the window.* hooks belong
+                exposeGlobals: true
+            };
+
+            window.sse = {
+                options: sseOptions,
+                settings: bootstrap.settings ?? fetch(settingsUrl).then((response) => response.json())
+            };
+        </script>
+    
+        <title>比特摩尔 · 3D快出页 Viewer Smoke</title>
+        <meta name="description" content="Bitmore week-1 SuperSplat Viewer smoke (self-hosted)" />
+        <style>
+            /* Acceptance bar — dark immersive; no GEO champagne */
+            #bm-bar {
+                position: fixed;
+                left: 0; right: 0; bottom: 0;
+                z-index: 10000;
+                display: flex;
+                gap: 10px;
+                justify-content: center;
+                align-items: center;
+                padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+                background: linear-gradient(transparent, rgba(0,0,0,0.85));
+                pointer-events: none;
+                font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+            }
+            #bm-bar button {
+                pointer-events: auto;
+                appearance: none;
+                border: 1px solid rgba(255,255,255,0.28);
+                background: rgba(20,20,24,0.92);
+                color: #f2f2f2;
+                border-radius: 999px;
+                padding: 10px 18px;
+                font-size: 14px;
+                letter-spacing: 0.02em;
+                cursor: pointer;
+            }
+            #bm-bar button:active { transform: scale(0.98); }
+            #bm-toast {
+                position: fixed;
+                left: 50%;
+                bottom: 72px;
+                transform: translateX(-50%);
+                z-index: 10001;
+                background: rgba(20,20,24,0.95);
+                color: #eee;
+                padding: 8px 14px;
+                border-radius: 8px;
+                font: 13px/1.3 system-ui, sans-serif;
+                opacity: 0;
+                transition: opacity 0.2s;
+                pointer-events: none;
+            }
+            #bm-toast.show { opacity: 1; }
+        </style>
+
+    </head>
+    <body>
+        <!-- Application Script -->
+        <script type="module">
+            import { createViewer } from './index.js';
+
+            const { options, settings } = window.sse;
+
+            // the viewer builds its own subtree (canvas, ui, icons) inside the container; the
+            // standalone document's container is the page itself
+            createViewer({ container: document.body, settings, ...options });
+        </script>
+    
+        <div id="bm-bar" role="toolbar" aria-label="分享与视角">
+            <button type="button" id="bm-share">分享链接</button>
+            <button type="button" id="bm-reset">重置视角</button>
+        </div>
+        <div id="bm-toast" role="status" aria-live="polite"></div>
+        <script>
+            (function () {
+                const toast = (msg) => {
+                    const el = document.getElementById('bm-toast');
+                    el.textContent = msg;
+                    el.classList.add('show');
+                    clearTimeout(el._t);
+                    el._t = setTimeout(() => el.classList.remove('show'), 1800);
+                };
+                document.getElementById('bm-share').addEventListener('click', async () => {
+                    const url = location.href;
+                    try {
+                        if (navigator.share) {
+                            await navigator.share({ title: document.title, url });
+                            return;
+                        }
+                    } catch (_) { /* fall through */ }
+                    try {
+                        await navigator.clipboard.writeText(url);
+                        toast('已复制链接');
+                    } catch (_) {
+                        prompt('复制分享链接', url);
+                    }
+                });
+                // Stub: full pose API needs createViewer host; week-1 smoke reloads to initial settings pose
+                document.getElementById('bm-reset').addEventListener('click', () => {
+                    const u = new URL(location.href);
+                    // keep content/settings params; drop transient flags
+                    location.replace(u.pathname + u.search);
+                });
+            })();
+        </script>
+
+    </body>
+</html>
