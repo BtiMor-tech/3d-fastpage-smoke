@@ -146,7 +146,7 @@
             #bm-bar button {
                 pointer-events: auto;
                 appearance: none;
-                border: 1px solid rgba(255,255,255,0.28);
+                border: 1px solid rgba(255,255,255,0.55);
                 background: rgba(20,20,24,0.92);
                 color: #f2f2f2;
                 border-radius: 999px;
@@ -195,8 +195,8 @@
                     const orbit = handle.cameraManager?.controllers?.orbit?.controller
                         || handle.app?.cameraManager?.controllers?.orbit?.controller;
                     if (orbit?.zoomRange) {
-                        orbit.zoomRange.x = Math.max(Number(orbit.zoomRange.x) || 0, 0.28);
-                        if (!Number.isFinite(Number(orbit.zoomRange.y)) || Number(orbit.zoomRange.y) > 8) {
+                        orbit.zoomRange.x = Math.max(Number(orbit.zoomRange.x) || 0, 0.55);
+                        if (!Number.isFinite(Number(orbit.zoomRange.y)) || Number(orbit.zoomRange.y) > 6) {
                             orbit.zoomRange.y = 8;
                         }
                     }
