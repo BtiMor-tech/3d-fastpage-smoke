@@ -182,38 +182,32 @@
 
             const { options, settings } = window.sse;
 
-            // ObjectExperience is inferred as !bbox.contains(resetCamera).
-            // Apple/gaiwan bboxes are large (floaters) → default pose lands inside → Fly Mode.
-            // Product rule: after load, force Orbit + Frame Scene so first paint is recognizable.
+            // Large floater bboxes make SuperSplat treat the pose as walkthrough (Fly).
+            // Force Orbit after load. Do NOT call frameScene() — it reframes the FULL
+            // ±floater AABB and undoes the subject camera in settings.json.
             const handle = await createViewer({ container: document.body, settings, ...options });
             window.__bmViewer = handle;
 
-            const lockObjectView = () => {
+            const lockOrbit = () => {
                 try {
                     if (handle.state) handle.state.cameraMode = 'orbit';
-                    handle.frameScene?.();
                 } catch (e) {
-                    console.warn('[bm] lockObjectView', e);
+                    console.warn('[bm] lockOrbit', e);
                 }
             };
 
             const arm = () => {
-                lockObjectView();
-                // second tick: splat bounds settle after first frame
-                requestAnimationFrame(() => lockObjectView());
-                setTimeout(lockObjectView, 120);
-                setTimeout(lockObjectView, 400);
+                lockOrbit();
+                requestAnimationFrame(lockOrbit);
+                setTimeout(lockOrbit, 120);
             };
 
             if (handle.state?.loaded) arm();
-            handle.events?.on?.('loaded:changed', (loaded) => {
-                if (loaded) arm();
-            });
-            // belt-and-braces if event payload is void
             handle.events?.on?.('loaded:changed', () => {
                 if (handle.state?.loaded) arm();
             });
         </script>
+
 
     
         <div id="bm-bar" role="toolbar" aria-label="分享与视角">
@@ -250,8 +244,8 @@
                     if (h) {
                         try {
                             if (h.state) h.state.cameraMode = 'orbit';
-                            h.frameScene?.();
-                            toast('已成帧 · 环绕');
+                            h.resetCamera?.();
+                            toast('已回主体机位 · 环绕');
                             return;
                         } catch (_) { /* reload fallback */ }
                     }
@@ -260,6 +254,7 @@
                 });
             })();
         </script>
+
 
 
     </body>
