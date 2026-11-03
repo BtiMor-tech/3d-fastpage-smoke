@@ -32,7 +32,7 @@
         -->
         <script type="application/json" id="sse-bootstrap">
             {
-                "contentUrl": "./apple.compressed.ply",
+                "contentUrl": "https://github.com/BtiMor-tech/3d-fastpage-smoke/releases/download/v0.1.0-apple/apple.compressed.ply",
                 "settingsUrl": "./settings.json"
             }
         </script>
@@ -182,10 +182,39 @@
 
             const { options, settings } = window.sse;
 
-            // the viewer builds its own subtree (canvas, ui, icons) inside the container; the
-            // standalone document's container is the page itself
-            createViewer({ container: document.body, settings, ...options });
+            // ObjectExperience is inferred as !bbox.contains(resetCamera).
+            // Apple/gaiwan bboxes are large (floaters) → default pose lands inside → Fly Mode.
+            // Product rule: after load, force Orbit + Frame Scene so first paint is recognizable.
+            const handle = await createViewer({ container: document.body, settings, ...options });
+            window.__bmViewer = handle;
+
+            const lockObjectView = () => {
+                try {
+                    if (handle.state) handle.state.cameraMode = 'orbit';
+                    handle.frameScene?.();
+                } catch (e) {
+                    console.warn('[bm] lockObjectView', e);
+                }
+            };
+
+            const arm = () => {
+                lockObjectView();
+                // second tick: splat bounds settle after first frame
+                requestAnimationFrame(() => lockObjectView());
+                setTimeout(lockObjectView, 120);
+                setTimeout(lockObjectView, 400);
+            };
+
+            if (handle.state?.loaded) arm();
+            handle.events?.on?.('loaded:changed', (loaded) => {
+                if (loaded) arm();
+            });
+            // belt-and-braces if event payload is void
+            handle.events?.on?.('loaded:changed', () => {
+                if (handle.state?.loaded) arm();
+            });
         </script>
+
     
         <div id="bm-bar" role="toolbar" aria-label="分享与视角">
             <button type="button" id="bm-share">分享链接</button>
@@ -216,14 +245,22 @@
                         prompt('复制分享链接', url);
                     }
                 });
-                // Stub: full pose API needs createViewer host; week-1 smoke reloads to initial settings pose
                 document.getElementById('bm-reset').addEventListener('click', () => {
+                    const h = window.__bmViewer;
+                    if (h) {
+                        try {
+                            if (h.state) h.state.cameraMode = 'orbit';
+                            h.frameScene?.();
+                            toast('已成帧 · 环绕');
+                            return;
+                        } catch (_) { /* reload fallback */ }
+                    }
                     const u = new URL(location.href);
-                    // keep content/settings params; drop transient flags
                     location.replace(u.pathname + u.search);
                 });
             })();
         </script>
+
 
     </body>
 </html>
