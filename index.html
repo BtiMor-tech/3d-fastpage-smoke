@@ -191,6 +191,15 @@
             const lockOrbit = () => {
                 try {
                     if (handle.state) handle.state.cameraMode = 'orbit';
+                    // Prefer patched bundle zoomRange; also walk known paths if exposed later.
+                    const orbit = handle.cameraManager?.controllers?.orbit?.controller
+                        || handle.app?.cameraManager?.controllers?.orbit?.controller;
+                    if (orbit?.zoomRange) {
+                        orbit.zoomRange.x = Math.max(Number(orbit.zoomRange.x) || 0, 0.28);
+                        if (!Number.isFinite(Number(orbit.zoomRange.y)) || Number(orbit.zoomRange.y) > 8) {
+                            orbit.zoomRange.y = 8;
+                        }
+                    }
                 } catch (e) {
                     console.warn('[bm] lockOrbit', e);
                 }

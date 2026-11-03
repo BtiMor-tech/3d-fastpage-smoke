@@ -103710,7 +103710,7 @@ class OrbitController {
     fov = 90;
     constructor() {
         this.controller = new OrbitController$1();
-        this.controller.zoomRange = new Vec2(0.01, Infinity);
+        this.controller.zoomRange = new Vec2(0.28, 8);
         this.controller.pitchRange = new Vec2(-90, 90);
         this.controller.rotateDamping = DEFAULT_CONTROLLER_DAMPING;
         this.controller.moveDamping = DEFAULT_CONTROLLER_DAMPING;
