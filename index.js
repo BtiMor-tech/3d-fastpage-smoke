@@ -103710,7 +103710,7 @@ class OrbitController {
     fov = 90;
     constructor() {
         this.controller = new OrbitController$1();
-        this.controller.zoomRange = new Vec2(0.95, 6);
+        this.controller.zoomRange = new Vec2(1.05, 6);
         this.controller.pitchRange = new Vec2(-90, 90);
         this.controller.rotateDamping = DEFAULT_CONTROLLER_DAMPING;
         this.controller.moveDamping = DEFAULT_CONTROLLER_DAMPING;
@@ -109246,7 +109246,8 @@ class Viewer {
             const far = Math.max(dist + boundRadius, 1e-2);
             const near = Math.max(dist - boundRadius, far / (1024 * 16));
             cameraEntity.camera.farClip = far;
-            cameraEntity.camera.nearClip = Math.min(1.0, near);
+            // Floor nearClip: tiny near + close orbit → large gaussians bloom white on mobile.
+            cameraEntity.camera.nearClip = Math.max(0.05, Math.min(1.0, near));
         };
         // handle application update
         app.on('update', (deltaTime) => {

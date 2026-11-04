@@ -178,7 +178,7 @@
     <body>
         <!-- Application Script -->
         <script type="module">
-            import { createViewer } from './index.js';
+            import { createViewer } from './index.bm4.js';
 
             const { options, settings } = window.sse;
 
@@ -188,15 +188,18 @@
             const handle = await createViewer({ container: document.body, settings, ...options });
             window.__bmViewer = handle;
 
+            // zoomRange lives only on OrbitController ctor (controllers are private).
+            // Bundle ships Vec2(1.05, 6) ≈ default subject distance → pinch-in hard-stopped.
+            // lockOrbit: keep Orbit + raise nearClip floor (bbox-driven near can be tiny).
+            const BM_MIN_DIST = 1.05;
             const lockOrbit = () => {
                 try {
                     if (handle.state) handle.state.cameraMode = 'orbit';
-                    // Prefer patched bundle zoomRange; also walk known paths if exposed later.
-                    const orbit = handle.cameraManager?.controllers?.orbit?.controller
-                        || handle.app?.cameraManager?.controllers?.orbit?.controller;
-                    // Must assign through setter (duck {x,y}); mutating .x hits the wrong pose.
-                    if (orbit) {
-                        orbit.zoomRange = { x: 0.95, y: 6 };
+                    const cam = handle.app?.root?.findByName?.('camera')
+                        || handle.app?.root?.children?.find?.((c) => c.camera);
+                    if (cam?.camera) {
+                        // Keep near plane from eating close shells; floor at 0.05 world units.
+                        if (cam.camera.nearClip < 0.05) cam.camera.nearClip = 0.05;
                     }
                 } catch (e) {
                     console.warn('[bm] lockOrbit', e);
@@ -207,11 +210,18 @@
                 lockOrbit();
                 requestAnimationFrame(lockOrbit);
                 setTimeout(lockOrbit, 120);
+                setTimeout(lockOrbit, 600);
             };
 
             if (handle.state?.loaded) arm();
             handle.events?.on?.('loaded:changed', () => {
                 if (handle.state?.loaded) arm();
+            });
+            // belt: keep mode after first gesture
+            handle.events?.on?.('cameraMode:changed', () => {
+                if (handle.state && handle.state.cameraMode !== 'orbit') {
+                    handle.state.cameraMode = 'orbit';
+                }
             });
         </script>
 
