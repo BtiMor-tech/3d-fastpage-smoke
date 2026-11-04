@@ -194,11 +194,9 @@
                     // Prefer patched bundle zoomRange; also walk known paths if exposed later.
                     const orbit = handle.cameraManager?.controllers?.orbit?.controller
                         || handle.app?.cameraManager?.controllers?.orbit?.controller;
-                    if (orbit?.zoomRange) {
-                        orbit.zoomRange.x = Math.max(Number(orbit.zoomRange.x) || 0, 0.55);
-                        if (!Number.isFinite(Number(orbit.zoomRange.y)) || Number(orbit.zoomRange.y) > 6) {
-                            orbit.zoomRange.y = 8;
-                        }
+                    // Must assign through setter (duck {x,y}); mutating .x hits the wrong pose.
+                    if (orbit) {
+                        orbit.zoomRange = { x: 0.95, y: 6 };
                     }
                 } catch (e) {
                     console.warn('[bm] lockOrbit', e);
