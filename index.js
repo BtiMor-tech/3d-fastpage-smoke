@@ -84129,11 +84129,13 @@ let OrbitController$1 = class OrbitController extends InputController$1 {
 	}
 	update(frame, dt) {
 		const { move, rotate } = frame.read();
-		offset$4.set(move[0], move[1], 0);
+		// BM product orbit: rotate ONLY. Pan (move xy) + dolly (move z) drive the
+		// focus/camera into splat volume → mobile white bloom / inside-flesh FAIL.
+		offset$4.set(0, 0, 0);
 		rotation$4.setFromEulerAngles(this._rootPose.angles).transformVector(offset$4, offset$4);
 		this._targetRootPose.move(offset$4);
 		const { z: dist } = this._targetChildPose.position;
-		this._targetChildPose.move(offset$4.set(0, 0, dist * (1 + move[2]) - dist));
+		this._targetChildPose.move(offset$4.set(0, 0, 0));
 		this._targetRootPose.rotate(angles.set(-rotate[1], -rotate[0], 0));
 		this._rootPose.lerp(
 			this._rootPose,
@@ -103710,7 +103712,7 @@ class OrbitController {
     fov = 90;
     constructor() {
         this.controller = new OrbitController$1();
-        this.controller.zoomRange = new Vec2(1.05, 6);
+        this.controller.zoomRange = new Vec2(1.05, 1.05);
         this.controller.pitchRange = new Vec2(-90, 90);
         this.controller.rotateDamping = DEFAULT_CONTROLLER_DAMPING;
         this.controller.moveDamping = DEFAULT_CONTROLLER_DAMPING;

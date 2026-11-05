@@ -178,7 +178,7 @@
     <body>
         <!-- Application Script -->
         <script type="module">
-            import { createViewer } from './index.bm4.js';
+            import { createViewer } from './index.bm5.js';
 
             const { options, settings } = window.sse;
 
@@ -189,7 +189,7 @@
             window.__bmViewer = handle;
 
             // zoomRange lives only on OrbitController ctor (controllers are private).
-            // Bundle ships Vec2(1.05, 6) ≈ default subject distance → pinch-in hard-stopped.
+            // Bundle ships Vec2(1.05, 1.05) rotate-only ≈ default subject distance → pinch-in hard-stopped.
             // lockOrbit: keep Orbit + raise nearClip floor (bbox-driven near can be tiny).
             const BM_MIN_DIST = 1.05;
             const lockOrbit = () => {
